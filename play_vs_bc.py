@@ -36,7 +36,7 @@ FEATURES = [
     "right_ball_dy_n", "right_ball_dx_n",
 ]
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "bc_model.pt")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "bc_model.pt")
 
 # ---------------------------------------------------------------------------
 # Model (must match training definition)
