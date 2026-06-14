@@ -188,10 +188,15 @@ def _deflect(bx, by, bvx, bvy, bs, py, mask, side):
 # Batched self-play  —  runs N_ENVS games concurrently
 # ═══════════════════════════════════════════════════════════════════════════════
 @torch.no_grad()
-def run_selfplay_batch(model: nn.Module, temperature: float = 1.0):
+def run_selfplay_batch(model: nn.Module, gamma: float = 0.95,
+                       temperature: float = 1.0):
     """
     Run N_ENVS parallel games until *all* finish.  One forward pass
     per frame shared across all active environments.
+
+    gamma:  discount factor.  The action just before scoring gets
+            weight 1.0;  actions N steps earlier get weight gamma^N.
+            This focuses the learning signal on the most relevant moves.
 
     Returns:
         transitions:  flat list of (features_np, action_idx, reward)
@@ -258,21 +263,27 @@ def run_selfplay_batch(model: nn.Module, temperature: float = 1.0):
 
         total_frames += n_active
 
-        # --- 6. handle scoring ---
+        # --- 6. handle scoring (with discount) ---
         for smask, side in [(scored_left, "left"), (scored_right, "right")]:
             if not smask.any():
                 continue
             for ei in np.where(smask & active)[0]:
+                buf = point_bufs[ei]
+                k = len(buf)
                 if side == "left":
                     score_left[ei] += 1
-                    for (f, l_i, r_i) in point_bufs[ei]:
-                        all_transitions.append((f, l_i,  1.0))
-                        all_transitions.append((f, r_i, -1.0))
                 else:
                     score_right[ei] += 1
-                    for (f, l_i, r_i) in point_bufs[ei]:
-                        all_transitions.append((f, r_i,  1.0))
-                        all_transitions.append((f, l_i, -1.0))
+                # last frame (closest to score) gets weight 1.0,
+                # first frame gets gamma^(k-1)
+                for i, (f, l_i, r_i) in enumerate(buf):
+                    w = gamma ** (k - 1 - i)
+                    if side == "left":
+                        all_transitions.append((f, l_i,  w))
+                        all_transitions.append((f, r_i, -w))
+                    else:
+                        all_transitions.append((f, r_i,  w))
+                        all_transitions.append((f, l_i, -w))
                 point_bufs[ei].clear()
 
         # --- 7. mark finished games inactive ---
@@ -457,7 +468,8 @@ def main(args):
 
     print(f"\n{'='*60}")
     print(f"Self-play REINFORCE  |  {N_ENVS} parallel envs  |  cpu")
-    print(f"Games: {args.games}  |  LR: {args.lr}  |  init temp: {args.temperature}")
+    print(f"Games: {args.games}  |  LR: {args.lr}  |  γ: {args.gamma}"
+          f"  |  updates/batch: {args.n_updates}")
     print(f"{'='*60}\n")
 
     while total_games < args.games:
@@ -467,12 +479,16 @@ def main(args):
 
         # ── 1. Collect 64 parallel episodes ──────────────────────────────
         model.eval()           # dropout off for collection
-        transitions, lw, rw, frames = run_selfplay_batch(model, temperature=temp)
+        transitions, lw, rw, frames = run_selfplay_batch(
+            model, gamma=args.gamma, temperature=temp
+        )
         total_games += lw + rw
 
-        # ── 2. Policy-gradient update ────────────────────────────────────
+        # ── 2. Multiple policy-gradient updates on same data ─────────────
         model.train()          # dropout on for training
-        loss_val, mean_r = reinforce_update(model, optimizer, transitions, baseline)
+        loss_val = mean_r = 0.0
+        for _ in range(args.n_updates):
+            loss_val, mean_r = reinforce_update(model, optimizer, transitions, baseline)
 
         if transitions:
             baseline = (1 - bl_alpha) * baseline + bl_alpha * mean_r
@@ -531,6 +547,10 @@ if __name__ == "__main__":
                         help="Total self-play games (default: 5000)")
     parser.add_argument("--lr",         type=float, default=1e-4,
                         help="Learning rate (default: 1e-4)")
+    parser.add_argument("--gamma",      type=float, default=0.95,
+                        help="Discount factor for per-point rewards (default: 0.95)")
+    parser.add_argument("--n-updates",  type=int,   default=4,
+                        help="Gradient steps per batch of collected data (default: 4)")
     parser.add_argument("--temperature", type=float, default=1.0,
                         help="Initial action softmax temperature (default: 1.0)")
     parser.add_argument("--log-every",  type=int,   default=500,
