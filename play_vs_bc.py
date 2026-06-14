@@ -1,12 +1,14 @@
 """
-collection/play_vs_bc.py
+play_vs_bc.py
 
-Human (right paddle, arrow keys) vs BC model (left paddle).
+Human (right paddle, arrow keys) vs a trained model (left paddle).
 
 Usage:
-    python collection/play_vs_bc.py
+    python play_vs_bc.py                              # default: BC model
+    python play_vs_bc.py --model models/rl_model.pt    # RL-trained model
 """
 
+import argparse
 import pygame
 import torch
 import torch.nn as nn
@@ -36,7 +38,7 @@ FEATURES = [
     "right_ball_dy_n", "right_ball_dx_n",
 ]
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "bc_model.pt")
+DEFAULT_MODEL = os.path.join(os.path.dirname(__file__), "models", "bc_model.pt")
 
 # ---------------------------------------------------------------------------
 # Model (must match training definition)
@@ -58,11 +60,11 @@ class PongMLP(nn.Module):
         return self.net(x)
 
 
-def load_model():
+def load_model(path):
     model = PongMLP()
-    model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    model.load_state_dict(torch.load(path, map_location="cpu"))
     model.eval()
-    print(f"Loaded BC model from {MODEL_PATH}")
+    print(f"Loaded model from {path}")
     return model
 
 
@@ -174,8 +176,8 @@ BLUE   = ( 80, 140, 220)   # You (right)
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main():
-    model = load_model()
+def main(model_path):
+    model = load_model(model_path)
 
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -285,4 +287,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Play Pong against a trained model")
+    parser.add_argument("--model", type=str, default=DEFAULT_MODEL,
+                        help=f"Path to model checkpoint (default: {DEFAULT_MODEL})")
+    args = parser.parse_args()
+    main(args.model)
