@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bc-pong — Play Pong against a self-play trained neural network</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #d0d0d8;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 2.5rem 1rem 1.5rem;
+  }
+  header h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #50c878, #4a9eff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header .subtitle {
+    color: #888;
+    margin-top: 0.4rem;
+    font-size: 1.05rem;
+  }
+  .layout {
+    display: flex;
+    gap: 2rem;
+    max-width: 1100px;
+    width: 100%;
+    padding: 0 1rem 2rem;
+    align-items: flex-start;
+  }
+  .game-col {
+    flex-shrink: 0;
+  }
+  #game-wrapper {
+    position: relative;
+    border: 2px solid #2a2a3a;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0e0e16;
+    box-shadow: 0 0 30px rgba(80,200,120,0.08), 0 0 30px rgba(74,158,255,0.08);
+  }
+  #game-wrapper canvas { display: block; }
+  #game-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  #game-overlay .msg {
+    color: #ffffffcc;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-shadow: 0 0 12px #000;
+  }
+  .info-col {
+    flex: 1;
+    min-width: 260px;
+  }
+  .info-col h2 {
+    font-size: 1.3rem;
+    color: #e0e0ee;
+    margin: 1.5rem 0 0.6rem;
+    border-bottom: 1px solid #2a2a40;
+    padding-bottom: 0.35rem;
+  }
+  .info-col h2:first-child { margin-top: 0; }
+  .info-col p, .info-col li {
+    color: #a0a0b0;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+  }
+  .info-col ul { list-style: none; }
+  .info-col li::before { content: "→ "; color: #50c878; font-weight: bold; }
+  .info-col code {
+    background: #1a1a2a;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: #50c878;
+  }
+  .badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 0.6rem 0;
+  }
+  .badge {
+    background: #1a1a2a;
+    border: 1px solid #2a2a40;
+    color: #b0b0c0;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  footer {
+    color: #555;
+    font-size: 0.82rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+  }
+  footer a { color: #4a9eff; text-decoration: none; }
+  @media (max-width: 900px) {
+    .layout { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>bc‑pong</h1>
+  <p class="subtitle">A Pong AI trained through behavioral cloning, then fine-tuned with self‑play reinforcement learning</p>
+</header>
+
+<div class="layout">
+  <div class="game-col">
+    <div id="game-wrapper">
+      <canvas id="game" width="800" height="600"></canvas>
+      <div id="game-overlay"></div>
+    </div>
+    <p style="text-align:center; margin-top:0.6rem; color:#666; font-size:0.82rem">
+      🡡/🡣 arrow keys — first to 5 wins
+    </p>
+  </div>
+
+  <div class="info-col">
+    <h2>How It Works</h2>
+    <ul>
+      <li><strong>Step 1 — Data Collection:</strong> Two humans played games against each other; every frame (positions, velocities) was logged to CSV.</li>
+      <li><strong>Step 2 — Behavioral Cloning (BC):</strong> A neural network was trained to predict the human paddle action (up/stay/down) from the frame state — a simple supervised classification problem.</li>
+      <li><strong>Step 3 — Reinforcement Learning (RL):</strong> The BC model was then fine-tuned via self‑play REINFORCE (vanilla policy gradient) with 64 parallel games, learning to win rather than just mimic.</li>
+    </ul>
+
+    <h2>The Model</h2>
+    <div class="badges">
+      <span class="badge">MLP</span>
+      <span class="badge">10 → 96 → 96 → 3</span>
+      <span class="badge">ReLU + Dropout</span>
+      <span class="badge">10,659 params</span>
+    </div>
+    <p>The net sees <strong>10 normalized features</strong> each frame: ball position &amp; velocity, both paddle positions, and relative distance vectors from each paddle to the ball. It outputs <strong>3 logits</strong> (up / stay / down) and plays argmax-greedy.</p>
+    <p>Because the model is so small, the entire forward pass runs in <strong>vanilla JavaScript</strong> in your browser — no backend needed.</p>
+
+    <h2>Training Stats</h2>
+    <p>BC trained on ~100k frames across 10 recorded games. RL then ran 5,000 self‑play games with REINFORCE (γ=0.95, temperature annealing 1.0→0.05, 64 parallel envs) to push the model beyond imitation into true gameplay strategy.</p>
+
+    <h2>Links</h2>
+    <p><a href="https://en.wikipedia.org/wiki/REINFORCE" target="_blank" rel="noopener">REINFORCE algorithm</a> &nbsp;·&nbsp;
+    <a href="https://en.wikipedia.org/wiki/Behavioral_cloning" target="_blank" rel="noopener">Behavioral Cloning</a></p>
+  </div>
+</div>
+
+<footer>
+  Built with PyTorch (training) + vanilla JS/Canvas (inference) &nbsp;·&nbsp;
+  <a href="https://github.com/anomalyco/opencode">opencode</a> assisted
+</footer>
+
+<script>
+// ============================================================================
+// Constants — must match the Python training code exactly
+// ============================================================================
+const W = 800, H = 600;
+const PW = 12, PH = 80;
+const BS = 12;
+const PS = 5;
+const BALL_SPEED = 5.0, BALL_SPEED_MAX = 14.0, BALL_SPEED_INC = 0.3;
+const WIN_SCORE = 5;
+
+const LEFT_X  = 30;
+const RIGHT_X = W - 30 - PW;
+
+// ============================================================================
+// Model — weights loaded from JSON; forward pass in pure JS
+// ============================================================================
+let modelLayers = null;
+
+async function loadModel() {
+  const resp = await fetch("rl_model.json");
+  const data = await resp.json();
+  modelLayers = data.layers;
+  document.getElementById("game-overlay").innerHTML = "";
+}
+
+// matmul → bias-add → (optional ReLU)
+function linear(x, w, b, relu) {
+  const out = new Float32Array(w.length);
+  for (let j = 0; j < w.length; j++) {
+    let s = b[j];
+    const row = w[j];
+    for (let i = 0; i < x.length; i++) s += row[i] * x[i];
+    out[j] = relu ? Math.max(0, s) : s;
+  }
+  return out;
+}
+
+function predict(feats) {
+  let x = linear(feats, modelLayers[0].weight, modelLayers[0].bias, true);
+  x = linear(x, modelLayers[1].weight, modelLayers[1].bias, true);
+  const logits = linear(x, modelLayers[2].weight, modelLayers[2].bias, false);
+  // argmax: 0→stay, 1→down, 2→up  — remap to -1 (up), 0, 1 (down)
+  let best = 0;
+  for (let i = 1; i < 3; i++) if (logits[i] > logits[best]) best = i;
+  return best - 1;  // -1=up, 0=stay, 1=down
+}
+
+function buildFeatures(bx, by, bvx, bvy, ly, ry) {
+  const lc = ly + PH / 2;
+  const rc = ry + PH / 2;
+  return new Float32Array([
+    bx / W,                // ball_x_n
+    by / H,                // ball_y_n
+    bvx / BALL_SPEED_MAX,  // ball_vx_n
+    bvy / BALL_SPEED_MAX,  // ball_vy_n
+    lc / H,                // left_center_y_n
+    rc / H,                // right_center_y_n
+    (by - lc) / H,         // left_ball_dy_n
+    (bx - 30) / W,         // left_ball_dx_n
+    (by - rc) / H,         // right_ball_dy_n
+    (758 - bx) / W,        // right_ball_dx_n
+  ]);
+}
+
+// ============================================================================
+// Game state
+// ============================================================================
+let leftY  = H / 2 - PH / 2;
+let rightY = H / 2 - PH / 2;
+let bx, by, bvx, bvy, speed;
+let aiScore = 0, humanScore = 0;
+let lastScorer = null;
+let gameActive = false;
+
+function resetBall(scorer) {
+  bx = W / 2;
+  by = H / 2;
+  speed = BALL_SPEED;
+  const angle = (Math.random() * 2 - 1) * Math.PI / 4;
+  const dir = (!scorer || scorer === "right") ? 1 : -1;
+  bvx = dir * speed * Math.cos(angle);
+  bvy = speed * Math.sin(angle);
+}
+
+function resetGame() {
+  leftY  = H / 2 - PH / 2;
+  rightY = H / 2 - PH / 2;
+  aiScore = humanScore = 0;
+  lastScorer = null;
+  resetBall(null);
+  gameActive = true;
+}
+
+resetBall(null);
+
+// ============================================================================
+// Input
+// ============================================================================
+const keys = {};
+window.addEventListener("keydown", e => { keys[e.key] = true; e.preventDefault(); });
+window.addEventListener("keyup",   e => { keys[e.key] = false; e.preventDefault(); });
+
+function humanAction() {
+  if (keys["ArrowUp"]   && !keys["ArrowDown"]) return -1;
+  if (keys["ArrowDown"] && !keys["ArrowUp"])   return  1;
+  return 0;
+}
+
+// ============================================================================
+// Physics (single step)
+// ============================================================================
+function stepPhysics() {
+  bx += bvx;
+  by += bvy;
+
+  // top/bottom bounce
+  if (by - BS/2 <= 0)      { by = BS/2;        bvy = Math.abs(bvy); }
+  if (by + BS/2 >= H)      { by = H - BS/2;    bvy = -Math.abs(bvy); }
+
+  // left paddle collision
+  const rpx = RIGHT_X;
+  if (bvx < 0 &&
+      bx - BS/2 < LEFT_X + PW && bx + BS/2 > LEFT_X &&
+      by + BS/2 > leftY && by - BS/2 < leftY + PH) {
+    deflect(leftY, "left");
+  }
+
+  // right paddle collision
+  if (bvx > 0 &&
+      bx + BS/2 > rpx && bx - BS/2 < rpx + PW &&
+      by + BS/2 > rightY && by - BS/2 < rightY + PH) {
+    deflect(rightY, "right");
+  }
+
+  // scoring
+  if (bx + BS/2 < 0)           { humanScore++; resetBall("right"); return "human"; }
+  if (bx - BS/2 > W)           { aiScore++;    resetBall("left");  return "ai"; }
+  return null;
+}
+
+function deflect(paddleY, side) {
+  const centre = paddleY + PH / 2;
+  let offset = (by - centre) / (PH / 2);
+  offset = Math.max(-1, Math.min(1, offset));
+  const angle = offset * (Math.PI / 3);
+  speed = Math.min(speed + BALL_SPEED_INC, BALL_SPEED_MAX);
+  if (side === "left") {
+    bvx =  speed * Math.cos(angle);
+    bx  = LEFT_X + PW + BS/2 + 1;
+  } else {
+    bvx = -speed * Math.cos(angle);
+    bx  = RIGHT_X - BS/2 - 1;
+  }
+  bvy = speed * Math.sin(angle);
+}
+
+// ============================================================================
+// Drawing
+// ============================================================================
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function draw() {
+  ctx.fillStyle = "#0a0a0f";
+  ctx.fillRect(0, 0, W, H);
+
+  // centre line
+  ctx.fillStyle = "#1e1e2e";
+  for (let y = 0; y < H; y += 20) ctx.fillRect(W/2 - 1, y, 2, 10);
+
+  // paddles
+  const aiGlow   = "#50c878";
+  const humGlow  = "#4a9eff";
+  ctx.fillStyle = aiGlow;
+  ctx.fillRect(LEFT_X, leftY, PW, PH);
+  ctx.fillStyle = humGlow;
+  ctx.fillRect(RIGHT_X, rightY, PW, PH);
+
+  // ball
+  ctx.fillStyle = "#e0e0f0";
+  ctx.beginPath();
+  ctx.ellipse(bx, by, BS/2, BS/2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // scores
+  ctx.font = "bold 42px 'Segoe UI', monospace";
+  ctx.textAlign = "center";
+  ctx.fillStyle = aiGlow;
+  ctx.fillText(aiScore, W/2 - 60, 52);
+  ctx.fillStyle = humGlow;
+  ctx.fillText(humanScore, W/2 + 60, 52);
+
+  // labels
+  ctx.font = "14px 'Segoe UI', monospace";
+  ctx.fillText("AI", 30 + PW/2, H - 12);
+  ctx.fillText("YOU", RIGHT_X + PW/2, H - 12);
+}
+
+function showMsg(text, color) {
+  const overlay = document.getElementById("game-overlay");
+  overlay.innerHTML = `<span class="msg" style="color:${color}">${text}</span>`;
+  setTimeout(() => { overlay.innerHTML = ""; }, 3000);
+}
+
+// ============================================================================
+// Game loop
+// ============================================================================
+let lastTime = 0;
+const FRAME_MS = 1000 / 60;
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+
+  if (!modelLayers) {
+    // still loading
+    ctx.fillStyle = "#0a0a0f";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#555";
+    ctx.font = "20px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("Loading model...", W/2, H/2);
+    return;
+  }
+
+  if (ts - lastTime < FRAME_MS) return;
+  lastTime = ts - ((ts - lastTime) % FRAME_MS);
+
+  // AI action
+  const feats = buildFeatures(bx, by, bvx, bvy, leftY, rightY);
+  const ai = predict(feats);
+  leftY = Math.max(0, Math.min(H - PH, leftY + ai * PS));
+
+  // Human action
+  const hum = humanAction();
+  rightY = Math.max(0, Math.min(H - PH, rightY + hum * PS));
+
+  // Physics
+  const scorer = stepPhysics();
+
+  // Win check
+  if (aiScore >= WIN_SCORE || humanScore >= WIN_SCORE) {
+    const winner = aiScore >= WIN_SCORE ? "AI WINS!" : "YOU WIN!";
+    const color  = aiScore >= WIN_SCORE ? "#50c878" : "#4a9eff";
+    draw();
+    ctx.font = "bold 36px 'Segoe UI', monospace";
+    ctx.fillStyle = color;
+    ctx.fillText(winner, W/2, H/2);
+    showMsg(winner, color);
+    aiScore = humanScore = 0;
+    resetBall(null);
+    lastScorer = null;
+  } else if (scorer) {
+    lastScorer = scorer;
+  }
+
+  draw();
+}
+
+// ============================================================================
+// Start
+// ============================================================================
+document.getElementById("game-overlay").innerHTML =
+  '<span class="msg" style="color:#888">Loading model...</span>';
+
+loadModel().then(() => {
+  document.getElementById("game-overlay").innerHTML =
+    '<span class="msg" style="color:#ffffff88;font-size:1.2rem">Use 🡡/🡣 to play</span>';
+  setTimeout(() => { document.getElementById("game-overlay").innerHTML = ""; }, 3000);
+  requestAnimationFrame(loop);
+});
+</script>
+
+</body>
+</html>
