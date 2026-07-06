@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32_.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16_.png">
+<link rel="manifest" href="/site.webmanifest">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>bc-pong — Play Pong against a self-play trained neural network</title>
+<title>bc-pong - Play Pong against a self-play trained neural network</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: #0a0a0f;
-    color: #d0d0d8;
+    font-family: "Courier New", Courier, monospace;
+    background: black;
+    color: white;
     line-height: 1.6;
     display: flex;
     flex-direction: column;
@@ -18,27 +22,26 @@
   }
   header {
     text-align: center;
-    padding: 2.5rem 1rem 1.5rem;
+    padding: 1rem 1rem 0.5rem;
   }
   header h1 {
-    font-size: 2.5rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #50c878, #4a9eff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #F28C28;
+    text-shadow: 0 0 10px #F28C28;
   }
   header .subtitle {
-    color: #888;
-    margin-top: 0.4rem;
-    font-size: 1.05rem;
+    color: #999;
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    max-width: 550px;
   }
   .layout {
     display: flex;
-    gap: 2rem;
-    max-width: 1100px;
+    gap: 1.5rem;
+    max-width: 1050px;
     width: 100%;
-    padding: 0 1rem 2rem;
+    padding: 0 1rem 0.5rem;
     align-items: flex-start;
   }
   .game-col {
@@ -46,11 +49,11 @@
   }
   #game-wrapper {
     position: relative;
-    border: 2px solid #2a2a3a;
+    border: 2px solid #F28C28;
     border-radius: 8px;
     overflow: hidden;
-    background: #0e0e16;
-    box-shadow: 0 0 30px rgba(80,200,120,0.08), 0 0 30px rgba(74,158,255,0.08);
+    background: #0a0a0a;
+    box-shadow: 0 0 30px rgba(242,140,40,0.15);
   }
   #game-wrapper canvas { display: block; }
   #game-overlay {
@@ -62,9 +65,9 @@
     pointer-events: none;
   }
   #game-overlay .msg {
-    color: #ffffffcc;
-    font-size: 1.8rem;
-    font-weight: 700;
+    color: #FFFFFFCC;
+    font-size: 1.5rem;
+    font-weight: bold;
     text-shadow: 0 0 12px #000;
   }
   .info-col {
@@ -72,26 +75,27 @@
     min-width: 260px;
   }
   .info-col h2 {
-    font-size: 1.3rem;
-    color: #e0e0ee;
-    margin: 1.5rem 0 0.6rem;
-    border-bottom: 1px solid #2a2a40;
-    padding-bottom: 0.35rem;
+    font-size: 1rem;
+    color: #F28C28;
+    margin: 1rem 0 0.4rem;
+    border-bottom: 1px solid #F28C28;
+    padding-bottom: 0.25rem;
   }
   .info-col h2:first-child { margin-top: 0; }
   .info-col p, .info-col li {
-    color: #a0a0b0;
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
+    color: #bbb;
+    font-size: 0.75rem;
+    margin-bottom: 0.3rem;
   }
   .info-col ul { list-style: none; }
-  .info-col li::before { content: "→ "; color: #50c878; font-weight: bold; }
+  .info-col li::before { content: "> "; color: #F28C28; font-weight: bold; }
   .info-col code {
-    background: #1a1a2a;
+    background: #111;
     padding: 0.15em 0.4em;
     border-radius: 4px;
     font-size: 0.85em;
-    color: #50c878;
+    color: #F28C28;
+    border: 1px solid #333;
   }
   .badges {
     display: flex;
@@ -100,31 +104,27 @@
     margin: 0.6rem 0;
   }
   .badge {
-    background: #1a1a2a;
-    border: 1px solid #2a2a40;
-    color: #b0b0c0;
+    background: #111;
+    border: 1px solid #F28C28;
+    color: #F28C28;
     padding: 0.2rem 0.6rem;
     border-radius: 4px;
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.75rem;
+    font-weight: bold;
   }
-  footer {
-    color: #555;
-    font-size: 0.82rem;
-    padding: 1.5rem 1rem;
-    text-align: center;
-  }
-  footer a { color: #4a9eff; text-decoration: none; }
+  a { color: #F28C28; }
+  a:hover { color: #e07b1a; }
   @media (max-width: 900px) {
     .layout { flex-direction: column; align-items: center; }
+    header h1 { font-size: 1.6rem; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>bc‑pong</h1>
-  <p class="subtitle">A Pong AI trained through behavioral cloning, then fine-tuned with self‑play reinforcement learning</p>
+  <h1>bc-pong</h1>
+  <p class="subtitle">Behavioral Cloning Pong</p>
 </header>
 
 <div class="layout">
@@ -133,17 +133,20 @@
       <canvas id="game" width="800" height="600"></canvas>
       <div id="game-overlay"></div>
     </div>
-    <p style="text-align:center; margin-top:0.6rem; color:#666; font-size:0.82rem">
-      🡡/🡣 arrow keys — first to 5 wins
+    <p style="text-align:center; margin-top:0.6rem; color:#777; font-size:0.75rem">
+      arrow keys to move &nbsp;·&nbsp; space to pause AI &nbsp;·&nbsp; first to 5 wins
     </p>
   </div>
 
   <div class="info-col">
+    <h2>Why?</h2>
+    <p>I watched the <a href="https://en.wikipedia.org/wiki/AlphaGo_(film)" target="_blank" rel="noopener">AlphaGo</a> documentary and was fascinated by the idea: you start with a model that's just <em>somewhat competent</em>, then let it play against itself thousands of times and it comes out the other side surprisingly strong. I wanted to understand that whole pipeline end-to-end on a tiny scale.</p>
+
     <h2>How It Works</h2>
     <ul>
-      <li><strong>Step 1 — Data Collection:</strong> Two humans played games against each other; every frame (positions, velocities) was logged to CSV.</li>
-      <li><strong>Step 2 — Behavioral Cloning (BC):</strong> A neural network was trained to predict the human paddle action (up/stay/down) from the frame state — a simple supervised classification problem.</li>
-      <li><strong>Step 3 — Reinforcement Learning (RL):</strong> The BC model was then fine-tuned via self‑play REINFORCE (vanilla policy gradient) with 64 parallel games, learning to win rather than just mimic.</li>
+      <li><strong>Step 1 - Data Collection:</strong> My wife and I played Pong against each other while every frame was logged to CSV.</li>
+      <li><strong>Step 2 - Behavioral Cloning:</strong> A neural network was trained to predict human paddle actions from frame state, basically mimicking us.</li>
+      <li><strong>Step 3 - Self-Play:</strong> The cloned model played against itself (64 parallel games, 5,000 total), nudging its weights toward winning rather than just imitating.</li>
     </ul>
 
     <h2>The Model</h2>
@@ -153,27 +156,15 @@
       <span class="badge">ReLU + Dropout</span>
       <span class="badge">10,659 params</span>
     </div>
-    <p>The net sees <strong>10 normalized features</strong> each frame: ball position &amp; velocity, both paddle positions, and relative distance vectors from each paddle to the ball. It outputs <strong>3 logits</strong> (up / stay / down) and plays argmax-greedy.</p>
-    <p>Because the model is so small, the entire forward pass runs in <strong>vanilla JavaScript</strong> in your browser — no backend needed.</p>
+    <p>I had an LLM pick the architecture and feature set. I didn't think too hard about the model choice. The point was the journey from behavioral cloning to self-play, not hyperparameter tuning. My focus was on learning how the full pipeline fits together: data collection, supervised cloning, reinforcement fine-tuning, then browser inference. The model is small enough that forward passes run in vanilla JS right here in the browser.</p>
 
-    <h2>Training Stats</h2>
-    <p>BC trained on ~100k frames across 10 recorded games. RL then ran 5,000 self‑play games with REINFORCE (γ=0.95, temperature annealing 1.0→0.05, 64 parallel envs) to push the model beyond imitation into true gameplay strategy.</p>
-
-    <h2>Links</h2>
-    <p><a href="https://en.wikipedia.org/wiki/REINFORCE" target="_blank" rel="noopener">REINFORCE algorithm</a> &nbsp;·&nbsp;
-    <a href="https://en.wikipedia.org/wiki/Behavioral_cloning" target="_blank" rel="noopener">Behavioral Cloning</a></p>
+    <h2>What's Next</h2>
+    <p>This model is purely reactive (one frame at a time). A natural next step would be stacking frames to give it a sense of velocity and trajectory over time. Could also experiment with a PPO-based approach, add a value head for better credit assignment, or train against a wider variety of play styles.</p>
   </div>
 </div>
 
-<footer>
-  Built with PyTorch (training) + vanilla JS/Canvas (inference) &nbsp;·&nbsp;
-  <a href="https://github.com/anomalyco/opencode">opencode</a> assisted
-</footer>
 
 <script>
-// ============================================================================
-// Constants — must match the Python training code exactly
-// ============================================================================
 const W = 800, H = 600;
 const PW = 12, PH = 80;
 const BS = 12;
@@ -184,9 +175,6 @@ const WIN_SCORE = 5;
 const LEFT_X  = 30;
 const RIGHT_X = W - 30 - PW;
 
-// ============================================================================
-// Model — weights loaded from JSON; forward pass in pure JS
-// ============================================================================
 let modelLayers = null;
 
 async function loadModel() {
@@ -196,7 +184,6 @@ async function loadModel() {
   document.getElementById("game-overlay").innerHTML = "";
 }
 
-// matmul → bias-add → (optional ReLU)
 function linear(x, w, b, relu) {
   const out = new Float32Array(w.length);
   for (let j = 0; j < w.length; j++) {
@@ -212,38 +199,35 @@ function predict(feats) {
   let x = linear(feats, modelLayers[0].weight, modelLayers[0].bias, true);
   x = linear(x, modelLayers[1].weight, modelLayers[1].bias, true);
   const logits = linear(x, modelLayers[2].weight, modelLayers[2].bias, false);
-  // argmax: 0→stay, 1→down, 2→up  — remap to -1 (up), 0, 1 (down)
   let best = 0;
   for (let i = 1; i < 3; i++) if (logits[i] > logits[best]) best = i;
-  return best - 1;  // -1=up, 0=stay, 1=down
+  return best - 1;
 }
 
 function buildFeatures(bx, by, bvx, bvy, ly, ry) {
   const lc = ly + PH / 2;
   const rc = ry + PH / 2;
   return new Float32Array([
-    bx / W,                // ball_x_n
-    by / H,                // ball_y_n
-    bvx / BALL_SPEED_MAX,  // ball_vx_n
-    bvy / BALL_SPEED_MAX,  // ball_vy_n
-    lc / H,                // left_center_y_n
-    rc / H,                // right_center_y_n
-    (by - lc) / H,         // left_ball_dy_n
-    (bx - 30) / W,         // left_ball_dx_n
-    (by - rc) / H,         // right_ball_dy_n
-    (758 - bx) / W,        // right_ball_dx_n
+    bx / W,
+    by / H,
+    bvx / BALL_SPEED_MAX,
+    bvy / BALL_SPEED_MAX,
+    lc / H,
+    rc / H,
+    (by - lc) / H,
+    (bx - 30) / W,
+    (by - rc) / H,
+    (758 - bx) / W,
   ]);
 }
 
-// ============================================================================
-// Game state
-// ============================================================================
 let leftY  = H / 2 - PH / 2;
 let rightY = H / 2 - PH / 2;
 let bx, by, bvx, bvy, speed;
 let aiScore = 0, humanScore = 0;
 let lastScorer = null;
 let gameActive = false;
+let paused = false;
 
 function resetBall(scorer) {
   bx = W / 2;
@@ -266,12 +250,30 @@ function resetGame() {
 
 resetBall(null);
 
-// ============================================================================
-// Input
-// ============================================================================
 const keys = {};
-window.addEventListener("keydown", e => { keys[e.key] = true; e.preventDefault(); });
-window.addEventListener("keyup",   e => { keys[e.key] = false; e.preventDefault(); });
+window.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === " ") {
+    e.preventDefault();
+  }
+  if (e.key === " ") {
+    if (modelLayers) {
+      paused = !paused;
+      const ov = document.getElementById("game-overlay");
+      if (paused) {
+        ov.innerHTML = '<span class="msg" style="color:#F28C28">PAUSED</span>';
+      } else {
+        ov.innerHTML = "";
+      }
+    }
+  }
+});
+window.addEventListener("keyup", e => {
+  keys[e.key] = false;
+  if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === " ") {
+    e.preventDefault();
+  }
+});
 
 function humanAction() {
   if (keys["ArrowUp"]   && !keys["ArrowDown"]) return -1;
@@ -279,18 +281,13 @@ function humanAction() {
   return 0;
 }
 
-// ============================================================================
-// Physics (single step)
-// ============================================================================
 function stepPhysics() {
   bx += bvx;
   by += bvy;
 
-  // top/bottom bounce
   if (by - BS/2 <= 0)      { by = BS/2;        bvy = Math.abs(bvy); }
   if (by + BS/2 >= H)      { by = H - BS/2;    bvy = -Math.abs(bvy); }
 
-  // left paddle collision
   const rpx = RIGHT_X;
   if (bvx < 0 &&
       bx - BS/2 < LEFT_X + PW && bx + BS/2 > LEFT_X &&
@@ -298,14 +295,12 @@ function stepPhysics() {
     deflect(leftY, "left");
   }
 
-  // right paddle collision
   if (bvx > 0 &&
       bx + BS/2 > rpx && bx - BS/2 < rpx + PW &&
       by + BS/2 > rightY && by - BS/2 < rightY + PH) {
     deflect(rightY, "right");
   }
 
-  // scoring
   if (bx + BS/2 < 0)           { humanScore++; resetBall("right"); return "human"; }
   if (bx - BS/2 > W)           { aiScore++;    resetBall("left");  return "ai"; }
   return null;
@@ -327,44 +322,36 @@ function deflect(paddleY, side) {
   bvy = speed * Math.sin(angle);
 }
 
-// ============================================================================
-// Drawing
-// ============================================================================
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function draw() {
-  ctx.fillStyle = "#0a0a0f";
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, W, H);
 
-  // centre line
-  ctx.fillStyle = "#1e1e2e";
+  ctx.fillStyle = "#1a1a1a";
   for (let y = 0; y < H; y += 20) ctx.fillRect(W/2 - 1, y, 2, 10);
 
-  // paddles
-  const aiGlow   = "#50c878";
-  const humGlow  = "#4a9eff";
+  const aiGlow  = "#F28C28";
+  const humGlow = "#e0e0e0";
   ctx.fillStyle = aiGlow;
   ctx.fillRect(LEFT_X, leftY, PW, PH);
   ctx.fillStyle = humGlow;
   ctx.fillRect(RIGHT_X, rightY, PW, PH);
 
-  // ball
-  ctx.fillStyle = "#e0e0f0";
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.ellipse(bx, by, BS/2, BS/2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // scores
-  ctx.font = "bold 42px 'Segoe UI', monospace";
+  ctx.font = "bold 42px 'Courier New', monospace";
   ctx.textAlign = "center";
   ctx.fillStyle = aiGlow;
   ctx.fillText(aiScore, W/2 - 60, 52);
   ctx.fillStyle = humGlow;
   ctx.fillText(humanScore, W/2 + 60, 52);
 
-  // labels
-  ctx.font = "14px 'Segoe UI', monospace";
+  ctx.font = "14px 'Courier New', monospace";
   ctx.fillText("AI", 30 + PW/2, H - 12);
   ctx.fillText("YOU", RIGHT_X + PW/2, H - 12);
 }
@@ -375,9 +362,6 @@ function showMsg(text, color) {
   setTimeout(() => { overlay.innerHTML = ""; }, 3000);
 }
 
-// ============================================================================
-// Game loop
-// ============================================================================
 let lastTime = 0;
 const FRAME_MS = 1000 / 60;
 
@@ -385,11 +369,10 @@ function loop(ts) {
   requestAnimationFrame(loop);
 
   if (!modelLayers) {
-    // still loading
-    ctx.fillStyle = "#0a0a0f";
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = "#555";
-    ctx.font = "20px monospace";
+    ctx.font = "16px 'Courier New', monospace";
     ctx.textAlign = "center";
     ctx.fillText("Loading model...", W/2, H/2);
     return;
@@ -398,46 +381,44 @@ function loop(ts) {
   if (ts - lastTime < FRAME_MS) return;
   lastTime = ts - ((ts - lastTime) % FRAME_MS);
 
-  // AI action
-  const feats = buildFeatures(bx, by, bvx, bvy, leftY, rightY);
-  const ai = predict(feats);
-  leftY = Math.max(0, Math.min(H - PH, leftY + ai * PS));
+  if (!paused) {
+    const feats = buildFeatures(bx, by, bvx, bvy, leftY, rightY);
+    const ai = predict(feats);
+    leftY = Math.max(0, Math.min(H - PH, leftY + ai * PS));
 
-  // Human action
-  const hum = humanAction();
-  rightY = Math.max(0, Math.min(H - PH, rightY + hum * PS));
+    const hum = humanAction();
+    rightY = Math.max(0, Math.min(H - PH, rightY + hum * PS));
 
-  // Physics
-  const scorer = stepPhysics();
+    const scorer = stepPhysics();
 
-  // Win check
-  if (aiScore >= WIN_SCORE || humanScore >= WIN_SCORE) {
-    const winner = aiScore >= WIN_SCORE ? "AI WINS!" : "YOU WIN!";
-    const color  = aiScore >= WIN_SCORE ? "#50c878" : "#4a9eff";
-    draw();
-    ctx.font = "bold 36px 'Segoe UI', monospace";
-    ctx.fillStyle = color;
-    ctx.fillText(winner, W/2, H/2);
-    showMsg(winner, color);
-    aiScore = humanScore = 0;
-    resetBall(null);
-    lastScorer = null;
-  } else if (scorer) {
-    lastScorer = scorer;
+    if (aiScore >= WIN_SCORE || humanScore >= WIN_SCORE) {
+      const winner = aiScore >= WIN_SCORE ? "AI WINS!" : "YOU WIN!";
+      const color  = aiScore >= WIN_SCORE ? "#F28C28" : "#e0e0e0";
+      draw();
+      ctx.font = "bold 36px 'Courier New', monospace";
+      ctx.fillStyle = color;
+      ctx.fillText(winner, W/2, H/2);
+      showMsg(winner, color);
+      aiScore = humanScore = 0;
+      resetBall(null);
+      lastScorer = null;
+    } else if (scorer) {
+      lastScorer = scorer;
+    }
+  } else {
+    const hum = humanAction();
+    rightY = Math.max(0, Math.min(H - PH, rightY + hum * PS));
   }
 
   draw();
 }
 
-// ============================================================================
-// Start
-// ============================================================================
 document.getElementById("game-overlay").innerHTML =
-  '<span class="msg" style="color:#888">Loading model...</span>';
+  '<span class="msg" style="color:#F28C28">Loading model...</span>';
 
 loadModel().then(() => {
   document.getElementById("game-overlay").innerHTML =
-    '<span class="msg" style="color:#ffffff88;font-size:1.2rem">Use 🡡/🡣 to play</span>';
+    '<span class="msg" style="color:#F28C2888;font-size:1rem">Use arrow keys to play</span>';
   setTimeout(() => { document.getElementById("game-overlay").innerHTML = ""; }, 3000);
   requestAnimationFrame(loop);
 });
